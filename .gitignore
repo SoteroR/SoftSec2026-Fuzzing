@@ -1,1 +1,15 @@
+# CLion / JetBrains
 .idea/
+
+# CMake build folders
+cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Executables
+main
+*.exe
