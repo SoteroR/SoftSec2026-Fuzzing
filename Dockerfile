@@ -1,5 +1,5 @@
 #probably we need to change tto the afl
-FROM ubuntu:22.04
+FROM aflplusplus/aflplusplus:stable
 
 #just installing basic things
 RUN apt-get update && apt-get install -y \
