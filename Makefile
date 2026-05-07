@@ -10,6 +10,16 @@ build:
 run:
 	docker run -it --rm -v "$PWD":/app $(IMAGE_NAME)
 
+compile-harness-afl:
+	afl-clang-fast++ src/harness.c \
+      -I/opt/sdl-afl/include \
+      -L/opt/sdl-afl/lib \
+      -lSDL2 \
+      -o target
+
+mini-fuzz:
+	afl-fuzz -i seeds -o findings -- ./target @@
+
 ## Grey-box fuzzing: coverage-guided (instrumented binary)
 fuzz:
 	docker run -ti --rm --name $(CONTAINER) $(IMAGE_NAME) \
