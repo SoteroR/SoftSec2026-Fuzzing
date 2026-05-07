@@ -8,7 +8,7 @@ build:
 
 ## Drop into the container interactively
 run:
-	docker run -it --rm  -v "$PWD":/app $(IMAGE_NAME)
+	docker run -it --rm --privileged -v "$PWD":/app $(IMAGE_NAME)
 
 compile-harness-afl:
 	afl-clang-fast src/harness.c \
@@ -25,7 +25,7 @@ compile-harness-normal:
       -o target-normal
 
 mini-fuzz:
-	afl-fuzz -i seeds -o findings -- ./target @@
+	afl-fuzz -i seeds -o findings -- ./target-afl @@
 
 ## Grey-box fuzzing: coverage-guided (instrumented binary)
 fuzz:
