@@ -13,7 +13,7 @@ run:
 ## Grey-box fuzzing: coverage-guided (instrumented binary)
 fuzz:
 	docker run -ti --rm --name $(CONTAINER) $(IMAGE_NAME) \
-	  afl-fuzz -i seeds -o out -s 123 -- main @@
+	  afl-fuzz -i seeds -o findings -s 123 -- main @@
 
 
 

@@ -20,20 +20,17 @@ RUN wget https://github.com/libsdl-org/SDL/releases/download/release-2.30.2/SDL2
     tar -xzf SDL2-2.30.2.tar.gz
 
 #compiles normally
-RUN cd SDL2-2.30.2 && \
-  ./configure --prefix=/opt/sdl-normal && \
-    make && \
-    make install && \
-    ldconfig
+#RUN cd SDL2-2.30.2 && \
+#  ./configure && \
+#    make && \
+#    make install && \
+#    ldconfig
 
 #compiles with AFL instrumentation
 RUN cd SDL2-2.30.2 && \
     CC=afl-clang-fast \
     CXX=afl-clang-fast++ \
-    CFLAGS="-fsanitize=address -g -O1" \
-    CXXFLAGS="-fsanitize=address -g -O1 -fpermissive" \
-    LDFLAGS="-fsanitize=address" \
-    ./configure --prefix=/opt/sdl-afl && \
+    ./configure --disable-shared && \
     make && \
     make install && \
     ldconfig
