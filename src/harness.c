@@ -111,10 +111,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        return 1;
-    }
-
     size_t input_size = 0;
     uint8_t *input = read_file(argv[1], &input_size);
 
