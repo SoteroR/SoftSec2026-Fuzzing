@@ -8,14 +8,14 @@ build:
 
 ## Drop into the container interactively
 run:
-	docker run -ti --rm --name $(CONTAINER) -v "$PWD":/app $(IMAGE_NAME)
+	docker run -it --rm  -v "$PWD":/app $(IMAGE_NAME)
 
 compile-harness-afl:
-	afl-clang-fast++ src/harness.c \
-      -I/opt/sdl-afl/include \
-      -L/opt/sdl-afl/lib \
-      -lSDL2 \
-      -o target-afl
+	afl-clang-fast src/harness.c \
+        -I/opt/sdl-afl/include \
+        -L/opt/sdl-afl/lib \
+        -o target-afl \
+        -lSDL2 -lm
 
 compile-harness-normal:
 	clang src/harness.c \
