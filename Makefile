@@ -1,6 +1,5 @@
-IMAGE_NAME  := softsec-xpdf-fuzz
-CONTAINER   := softsec-xpdf
-WORKDIR     := /home/softsec
+IMAGE_NAME  := group-17-fuzz
+CONTAINER   := group-17
 
 .PHONY: build run fuzz shell clean
 
@@ -9,17 +8,14 @@ build:
 
 ## Drop into the container interactively
 run:
-	docker run -ti --rm --name $(CONTAINER) $(IMAGE_NAME)
+	docker run -it --rm -v "$PWD":/app $(IMAGE_NAME)
 
 ## Grey-box fuzzing: coverage-guided (instrumented binary)
 fuzz:
 	docker run -ti --rm --name $(CONTAINER) $(IMAGE_NAME) \
-	  afl-fuzz -i $(WORKDIR)/seeds -o $(WORKDIR)/out -s 123 \
-	    -- $(WORKDIR)/install/bin/pdftotext @@ /tmp/output
+	  afl-fuzz -i seeds -o out -s 123 -- main @@
 
-## Open a shell in a running container
-shell:
-	docker exec -ti $(CONTAINER) /bin/bash
+
 
 ## Remove containers and image
 clean:
