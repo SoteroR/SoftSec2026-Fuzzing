@@ -17,6 +17,13 @@ compile-harness-afl:
       -lSDL2 \
       -o target
 
+compile-harness-normal:
+	clang src/harness.c \
+      -I/opt/sdl-normal/include \
+      -L/opt/sdl-normal/lib \
+      -lSDL2 \
+      -o target-normal
+
 mini-fuzz:
 	afl-fuzz -i seeds -o findings -- ./target @@
 
