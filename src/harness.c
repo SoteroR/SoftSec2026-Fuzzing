@@ -15,9 +15,7 @@ int main(int argc, char **argv) {
     Uint8 *audio_buf;
     Uint32 audio_len;
 
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        return 1;
-    }
+
     //target funciton
     if (SDL_LoadWAV(argv[1], &spec, &audio_buf, &audio_len) == NULL) {
         SDL_Quit();
