@@ -21,7 +21,8 @@ RUN wget https://github.com/libsdl-org/SDL/releases/download/release-2.30.2/SDL2
 
 #compiles normally
 RUN cd SDL2-2.30.2 && \
-  ./configure --prefix=/opt/sdl-normal && \
+    CFLAGS="-fsanitize=address -g -O1" \
+    ./configure --prefix=/opt/sdl-normal && \
     make && \
     make install && \
     ldconfig
@@ -30,6 +31,7 @@ RUN cd SDL2-2.30.2 && \
 RUN cd SDL2-2.30.2 && \
     CC=afl-clang-fast \
     CXX=afl-clang-fast++ \
+    CFLAGS="-fsanitize=address -g -O1" \
     ./configure --disable-shared --prefix=/opt/sdl-afl && \
     make && \
     make install && \
