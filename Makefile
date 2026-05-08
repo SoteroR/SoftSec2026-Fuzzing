@@ -1,4 +1,4 @@
-IMAGE_NAME  := group-17-fuzz:latest
+IMAGE_NAME  := group-17-fuzz
 CONTAINER   := group-17
 
 .PHONY: build run fuzz shell clean
@@ -8,14 +8,40 @@ build:
 
 ## Drop into the container interactively
 run:
-	docker run -it --rm --privileged -v "$PWD":/app $(IMAGE_NAME)
+	docker run -ti --rm --privileged -v "$$PWD":/app --name $(CONTAINER) $(IMAGE_NAME)
+
+fuzz-whitebox:
+	afl-clang-fast src/harness.c \
+		-fsanitize=address \
+		-I/opt/sdl-afl/include \
+		-L/opt/sdl-afl/lib \
+		-o target-afl \
+		-lSDL2 -lm
+	afl-fuzz -i seeds -o findings -x wav.dict -- ./target-afl @@
+
+
+fuzz-qemu:
+	clang src/harness.c \
+	  -I/opt/sdl-normal/include \
+	  -L/opt/sdl-normal/lib \
+	  -Wl,-rpath,/opt/sdl-normal/lib \
+	  -o target-normal \
+	  -lSDL2 -lm
+	#AFL_QEMU_PERSISTENT_GPR=1 AFL_QEMU_PERSISTENT_ADDR=0xdead \
+	afl-fuzz -Q -i seeds -o findings -t 2000 -- ./target-normal @@
+
+
 
 compile-harness-afl:
-	afl-clang-fast src/harness.c \
-        -I/opt/sdl-afl/include \
-        -L/opt/sdl-afl/lib \
-        -o target-afl \
-        -lSDL2 -lm
+	AFL_USE_ASAN=1 afl-clang-fast \
+		-O1 -g \
+		src/harness.c \
+		-I/opt/sdl-afl/include \
+		-L/opt/sdl-afl/lib \
+		-o target-afl \
+		-lSDL2 -lm -ldl -lpthread
+
+
 
 compile-harness-normal:
 	clang src/harness.c \
@@ -24,8 +50,6 @@ compile-harness-normal:
       -lSDL2 \
       -o target-normal
 
-mini-fuzz:
-	afl-fuzz -i seeds -o findings -- ./target-afl @@
 
 ## Grey-box fuzzing: coverage-guided (instrumented binary)
 fuzz:
