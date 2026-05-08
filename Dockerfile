@@ -26,18 +26,18 @@ RUN cd SDL2-2.30.2 && \
     make install && \
     ldconfig
 
-#compiles with AFL instrumentation
+#compiles with afl
 RUN cd SDL2-2.30.2 && \
+    make clean || true && \
+    AFL_USE_ASAN=1 \
     CC=afl-clang-fast \
     CXX=afl-clang-fast++ \
-    CFLAGS="-fsanitize=address -g -O1" \
-    CXXFLAGS="-fsanitize=address -g -O1 -fpermissive" \
-    LDFLAGS="-fsanitize=address" \
+    CFLAGS="-O1 -g" \
+    CXXFLAGS="-O1 -g" \
     ./configure --disable-shared --prefix=/opt/sdl-afl && \
     make && \
     make install && \
     ldconfig
-
 
 #change to app directory
 WORKDIR /app

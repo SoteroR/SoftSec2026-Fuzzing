@@ -22,11 +22,13 @@ fuzz-whitebox:
 
 
 compile-harness-afl:
-	afl-clang-fast src/harness.c \
-        -I/opt/sdl-afl/include \
-        -L/opt/sdl-afl/lib \
-        -o target-afl \
-        -lSDL2 -lm \
+	AFL_USE_ASAN=1 afl-clang-fast \
+		-O1 -g \
+		src/harness.c \
+		-I/opt/sdl-afl/include \
+		-L/opt/sdl-afl/lib \
+		-o target-afl \
+		-lSDL2 -lm -ldl -lpthread
 
 
 
