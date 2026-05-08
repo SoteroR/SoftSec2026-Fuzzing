@@ -17,7 +17,7 @@ fuzz-whitebox:
 		-L/opt/sdl-afl/lib \
 		-o target-afl \
 		-lSDL2 -lm
-	afl-fuzz -i seeds -o findings -- ./target-afl @@
+	afl-fuzz -i seeds -o findings -x wav.dict -- ./target-afl @@
 
 
 fuzz-qemu:
