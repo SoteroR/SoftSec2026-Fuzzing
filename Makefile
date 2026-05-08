@@ -20,6 +20,17 @@ fuzz-whitebox:
 	afl-fuzz -i seeds -o findings -- ./target-afl @@
 
 
+fuzz-qemu:
+	clang src/harness.c \
+	  -I/opt/sdl-normal/include \
+	  -L/opt/sdl-normal/lib \
+	  -Wl,-rpath,/opt/sdl-normal/lib \
+	  -o target-normal \
+	  -lSDL2 -lm
+	#AFL_QEMU_PERSISTENT_GPR=1 AFL_QEMU_PERSISTENT_ADDR=0xdead \
+	afl-fuzz -Q -i seeds -o findings -t 2000 -- ./target-normal @@
+
+
 
 compile-harness-afl:
 	AFL_USE_ASAN=1 afl-clang-fast \
