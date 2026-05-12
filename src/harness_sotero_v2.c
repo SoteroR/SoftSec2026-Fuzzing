@@ -150,6 +150,38 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
 
     SDL_free(cvt.buf);
 
+
+    if (payload_size >= 4) {
+        size_t half = payload_size / 2;
+
+        Uint8 *mix_dst = (Uint8 *)SDL_malloc(half);
+        Uint8 *mix_src = (Uint8 *)SDL_malloc(half);
+
+        if (mix_dst && mix_src) {
+            memcpy(mix_dst,
+                   data + payload_offset,
+                   half);
+
+            memcpy(mix_src,
+                   data + payload_offset + half,
+                   half);
+
+            int volume =
+                data[8 % size] %
+                (SDL_MIX_MAXVOLUME + 1);
+
+            SDL_MixAudioFormat(
+                mix_dst,
+                mix_src,
+                src_format,
+                (Uint32)half,
+                volume);
+        }
+
+        SDL_free(mix_dst);
+        SDL_free(mix_src);
+    }
+
     return 0;
 }
 
