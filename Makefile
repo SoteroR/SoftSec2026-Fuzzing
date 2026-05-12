@@ -12,13 +12,22 @@ run:
 
 fuzz-whitebox:
 	afl-clang-fast src/harness.c \
-		-fsanitize=address \
 		-I/opt/sdl-afl/include \
 		-L/opt/sdl-afl/lib \
 		-o target-afl \
 		-lSDL2 -lm
 	afl-fuzz -i seeds -o findings -x wav.dict -- ./target-afl @@
 
+fuzz-whitebox-asan:
+	afl-clang-fast src/harness.c \
+		-fsanitize=address \
+		-I/opt/sdl-afl/include \
+		-L/opt/sdl-afl/lib \
+		-o target-afl \
+		-lSDL2 -lm
+	afl-fuzz -i seeds -o findings -x wav.dict -- ./target-afl @@
+	
+## If we want persistant with whitebox add under here:
 
 fuzz-qemu:
 	clang src/harness.c \
@@ -27,7 +36,29 @@ fuzz-qemu:
 	  -Wl,-rpath,/opt/sdl-normal/lib \
 	  -o target-normal \
 	  -lSDL2 -lm
-	#AFL_QEMU_PERSISTENT_GPR=1 AFL_QEMU_PERSISTENT_ADDR=0xdead \
+	afl-fuzz -Q -i seeds -o findings -t 2000 -- ./target-normal @@	
+
+
+fuzz-qemu-asan:
+	clang src/harness.c \
+	  -I/opt/sdl-normal/include \
+	  -L/opt/sdl-normal/lib \
+	  -Wl,-rpath,/opt/sdl-normal/lib \
+	  -o target-normal \
+	  -lSDL2 -lm
+	AFL_USE_QASAN=1 \
+	afl-fuzz -Q -i seeds -o findings -t 2000 -- ./target-normal @@
+
+fuzz-qemu-persistent-asan:
+	clang src/harness.c \
+	  -I/opt/sdl-normal/include \
+	  -L/opt/sdl-normal/lib \
+	  -Wl,-rpath,/opt/sdl-normal/lib \
+	  -o target-normal \
+	  -lSDL2 -lm
+	AFL_USE_QASAN=1 \
+	AFL_QEMU_PERSISTENT_GPR=1 \
+	AFL_QEMU_PERSISTENT_ADDR=0xdead \
 	afl-fuzz -Q -i seeds -o findings -t 2000 -- ./target-normal @@
 
 
