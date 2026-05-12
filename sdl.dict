@@ -1,0 +1,54 @@
+# Control byte values
+ctl_00="\x00"
+ctl_01="\x01"
+ctl_02="\x02"
+ctl_03="\x03"
+ctl_04="\x04"
+ctl_05="\x05"
+ctl_06="\x06"
+ctl_07="\x07"
+ctl_08="\x08"
+ctl_09="\x09"
+ctl_0a="\x0a"
+ctl_0b="\x0b"
+ctl_0c="\x0c"
+ctl_0d="\x0d"
+
+# Conversion-shape flags (given the harness uses byte 8 as a control for the shape of the conversion)
+flag_none="\x00"
+flag_same_format="\x01"
+flag_same_channels="\x02"
+flag_same_freq="\x04"
+flag_noop="\x07"
+
+# audio payload boundaries
+zero="\x00"
+ff="\xff"
+u8_mid="\x80"
+s8_max="\x7f"
+alt_55="\x55"
+alt_aa="\xaa"
+
+# 16-bit sample boundaries in both little-endian and big-endian
+s16_zero="\x00\x00"
+s16_max="\xff\x7f"
+s16_min="\x00\x80"
+s16_neg1="\xff\xff"
+s16be_zero="\x00\x00"
+s16be_max="\x7f\xff"
+s16be_min="\x80\x00"
+s16be_neg1="\xff\xff"
+
+# 32-bit sample boundaries in both little-endian and big-endian
+s32_zero="\x00\x00\x00\x00"
+s32_max="\xff\xff\xff\x7f"
+s32_min="\x00\x00\x00\x80"
+s32_neg1="\xff\xff\xff\xff"
+
+# float32 values
+f32_zero="\x00\x00\x00\x00"
+f32_one="\x00\x00\x80\x3f"
+f32_neg_one="\x00\x00\x80\xbf"
+f32_inf="\x00\x00\x80\x7f"
+f32_neg_inf="\x00\x00\x80\xff"
+f32_nan="\x00\x00\xc0\x7f"
