@@ -11,10 +11,14 @@
 #define MAX_PAYLOAD_SIZE (1 << 18)
 
 static int fuzz_one_input(const uint8_t *data, size_t size) {
+
+    //Do not allow excessive small inputs (we need 32 minimum for everything to work correctly)
+    //Do not allow excessive big inputs (performance)
     if (size < 32 || size > MAX_INPUT_SIZE) {
         return 0;
     }
 
+    //Initialise audioconverter with 0s
     SDL_AudioCVT cvt;
     memset(&cvt, 0, sizeof(cvt));
 
@@ -50,6 +54,7 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
         192000
     };
 
+    //randomly choose formats and frequencies
     const size_t num_formats =
         sizeof(formats) / sizeof(formats[0]);
 
@@ -71,14 +76,9 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
     int dst_freq =
         freqs[data[1] % num_freqs];
 
-    /*
-     * Improve path diversity:
-     * - no-op conversions
-     * - format-only conversions
-     * - channel-only conversions
-     * - frequency-only conversions
-     */
 
+
+    //Sometimes force same format, channels or frequency
     if (data[7] & 1) {
         dst_format = src_format;
     }
@@ -90,6 +90,8 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
     if (data[7] & 4) {
         dst_freq = src_freq;
     }
+
+    //Extract payload
 
     size_t payload_offset = 8 + (data[6] % 24);
 
@@ -107,6 +109,8 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
         payload_size = MAX_PAYLOAD_SIZE;
     }
 
+    //Create Audio converter from the random sources to the random destinations
+
     if (SDL_BuildAudioCVT(
             &cvt,
             src_format,
@@ -118,14 +122,13 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
         return 0;
     }
 
-    /*
-     * Prevent excessive allocations.
-     */
 
+    //Prevent excessive allocations, maximum x64
     if (cvt.len_mult <= 0 || cvt.len_mult > 64) {
         return 0;
     }
 
+    //Prevent integer overflow
     if (payload_size >
         ((size_t)INT_MAX / (size_t)cvt.len_mult)) {
         return 0;
@@ -146,12 +149,15 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
            data + payload_offset,
            payload_size);
 
+
+    //Apply the conversor
     SDL_ConvertAudio(&cvt);
 
     SDL_free(cvt.buf);
 
-
+    //mixer part
     if (payload_size >= 4) {
+        //divide payload into 2 audios
         size_t half = payload_size / 2;
 
         Uint8 *mix_dst = (Uint8 *)SDL_malloc(half);
@@ -170,6 +176,7 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
                 data[8 % size] %
                 (SDL_MIX_MAXVOLUME + 1);
 
+            //mix the 2 audios and apply volume
             SDL_MixAudioFormat(
                 mix_dst,
                 mix_src,
@@ -182,6 +189,46 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
         SDL_free(mix_src);
     }
 
+    //Stream part
+
+    //prepare stream comverser
+    SDL_AudioStream *stream =
+    SDL_NewAudioStream(
+        src_format,
+        src_channels,
+        src_freq,
+        dst_format,
+        dst_channels,
+        dst_freq);
+
+    if (stream) {
+        //Add the data to the stream
+        SDL_AudioStreamPut(
+            stream,
+            data + payload_offset,
+            (int)payload_size);
+
+        //signal that all data was added
+        SDL_AudioStreamFlush(stream);
+
+        //Check if data is available
+        int available = SDL_AudioStreamAvailable(stream);
+
+        if (available > 0 && available <= (int)MAX_PAYLOAD_SIZE) {
+            //allocate data for the stream data
+            Uint8 *out = (Uint8 *)SDL_malloc((size_t)available);
+
+            if (out) {
+
+                //get all data out
+                SDL_AudioStreamGet(stream, out, available);
+                SDL_free(out);
+            }
+        }
+
+        SDL_FreeAudioStream(stream);
+    }
+
     return 0;
 }
 
@@ -190,16 +237,12 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    /*
-     * Initialize SDL without enabling subsystems.
-     * This avoids backend audio/device issues in
-     * headless fuzzing environments.
-     */
-
+    //Initializing SDL
     if (SDL_Init(0) != 0) {
         return 0;
     }
 
+    //Next part is just reading the fuzzer file and storing it in a buffer
     FILE *fp = fopen(argv[1], "rb");
 
     if (!fp) {
@@ -236,6 +279,9 @@ int main(int argc, char **argv) {
 
     fclose(fp);
 
+    //Reading finish///////////
+
+    //If file read successfully, fuzz the program
     if (nread == (size_t)len) {
         fuzz_one_input(buf, (size_t)len);
     }
