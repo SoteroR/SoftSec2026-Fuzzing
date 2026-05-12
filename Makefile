@@ -18,6 +18,15 @@ fuzz-whitebox:
 		-o target-afl \
 		-lSDL2 -lm
 	afl-fuzz -i seeds -o findings -x sdl.dict -- ./target-afl @@
+
+fuzz-whitebox-asan:
+	afl-clang-fast src/harness.c \
+		-fsanitize=address \
+		-I/opt/sdl-afl/include \
+		-L/opt/sdl-afl/lib \
+		-o target-afl \
+		-lSDL2 -lm
+	afl-fuzz -i seeds -o findings -x wav.dict -- ./target-afl @@
 	
 ## If we want persistant with whitebox add under here:
 
