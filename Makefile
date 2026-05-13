@@ -12,10 +12,9 @@ run:
 
 fuzz-whitebox:
 	afl-clang-fast src/harness.c \
-		-fsanitize=address \
-		-I/opt/sdl-afl/include \
-		-L/opt/sdl-afl/lib \
-		-o target-afl \
+		-I/opt/sdl-afl-noAsan/include \
+		-L/opt/sdl-afl-noAsan/lib \
+		-o target-afl-noAsan \
 		-lSDL2 -lm
 	afl-fuzz -i seeds -o findings -x sdl.dict -- ./target-afl @@
 
@@ -44,7 +43,7 @@ fuzz-qemu:
 	  -Wl,-rpath,/opt/sdl-normal/lib \
 	  -o target-normal \
 	  -lSDL2 -lm
-	afl-fuzz -Q -i seeds -o findings_qemu -t 2000 -- ./target-normal @@	
+	afl-fuzz -Q -i seeds -o findings_qemu -t 2000 -- ./target-normal @@
 
 
 fuzz-qemu-asan:

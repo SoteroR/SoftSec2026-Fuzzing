@@ -26,15 +26,29 @@ RUN cd SDL2-2.30.2 && \
     make install && \
     ldconfig
 
-#compiles with afl
+#compiles with afl + Asan
 RUN cd SDL2-2.30.2 && \
     make clean || true && \
+    AFL_DEBUG=1 \
     AFL_USE_ASAN=1 \
     CC=afl-clang-fast \
     CXX=afl-clang-fast++ \
     CFLAGS="-O1 -g" \
     CXXFLAGS="-O1 -g" \
     ./configure --disable-shared --prefix=/opt/sdl-afl && \
+    make && \
+    make install && \
+    ldconfig
+
+#compiles with afl
+RUN cd SDL2-2.30.2 && \
+    make clean || true && \
+    AFL_DEBUG=1 \
+    CC=afl-clang-fast \
+    CXX=afl-clang-fast++ \
+    CFLAGS="-O1 -g" \
+    CXXFLAGS="-O1 -g" \
+    ./configure --disable-shared --prefix=/opt/sdl-afl-noAsan && \
     make && \
     make install && \
     ldconfig
