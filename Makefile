@@ -16,7 +16,7 @@ fuzz-whitebox:
 		-L/opt/sdl-afl-noAsan/lib \
 		-o target-afl-noAsan \
 		-lSDL2 -lm
-	afl-fuzz -i seeds -o findings -x sdl.dict -- ./target-noAsan @@
+	afl-fuzz -i seeds -o findings -x sdl.dict -- ./target-afl-noAsan @@
 
 fuzz-whitebox-asan:
 	afl-clang-fast src/harness.c \
@@ -34,7 +34,7 @@ fuzz-whitebox-asan-persistent:
 		-L/opt/sdl-afl/lib \
 		-o target-afl-persistent \
 		-lSDL2 -lm
-	afl-fuzz -i seeds -o findings -x sdl.dict -- ./target-afl-persistent @@
+	afl-fuzz -i seeds -o findings_persistent -x sdl.dict -- ./target-afl-persistent @@
 
 fuzz-qemu:
 	clang src/harness.c \
@@ -54,7 +54,7 @@ fuzz-qemu-asan:
 	  -o target-normal \
 	  -lSDL2 -lm
 	AFL_USE_QASAN=1 \
-	afl-fuzz -Q -i seeds -o findings_qemu -t 2000 -- ./target-normal @@
+	afl-fuzz -Q -i seeds -o findings_qemu-asan -t 2000 -- ./target-normal @@
 
 fuzz-qemu-persistent-asan:
 	clang src/harness.c \
