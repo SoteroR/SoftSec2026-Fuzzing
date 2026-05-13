@@ -66,7 +66,7 @@ fuzz-qemu-persistent-asan:
 	  -lSDL2 -lm
 	AFL_USE_QASAN=1 \
 	AFL_QEMU_PERSISTENT_GPR=1 \
-	AFL_QEMU_PERSISTENT_ADDR=0xdead \
+	AFL_QEMU_PERSISTENT_ADDR=0x779ab5ac32a0 \
 	afl-fuzz -Q -i seeds -o findings_qemu -t 2000 -- ./target-normal @@
 
 
