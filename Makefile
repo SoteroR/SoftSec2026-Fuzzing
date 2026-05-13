@@ -56,16 +56,15 @@ fuzz-qemu-asan:
 	AFL_USE_QASAN=1 \
 	afl-fuzz -Q -i seeds -o findings_qemu-asan -t 2000 -- ./target-normal @@
 
-fuzz-qemu-persistent-asan:
+fuzz-qemu-persistent:
 	clang src/harness.c \
 	  -I/opt/sdl-normal/include \
 	  -L/opt/sdl-normal/lib \
 	  -Wl,-rpath,/opt/sdl-normal/lib \
 	  -o target-normal \
 	  -lSDL2 -lm
-	AFL_USE_QASAN=1 \
 	AFL_QEMU_PERSISTENT_GPR=1 \
-	AFL_QEMU_PERSISTENT_ADDR=0x7ffff6219430 \
+	AFL_QEMU_PERSISTENT_ADDR=0x40000012a0 \
 	afl-fuzz -Q -i seeds -o findings_qemu -t 2000 -- ./target-normal @@
 
 compile-harness-afl:
