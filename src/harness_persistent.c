@@ -242,6 +242,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    //persistent mode, loop
     while (__AFL_LOOP(1000)) {
         //Next part is just reading the fuzzer file and storing it in a buffer
         FILE *fp = fopen(argv[1], "rb");
