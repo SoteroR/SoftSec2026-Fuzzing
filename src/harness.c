@@ -91,26 +91,30 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
         dst_freq = src_freq;
     }
 
-    //Extract payload
-
+    //We will skip the initial configuration bytes and some extra random for the payload
     size_t payload_offset = 8 + (data[6] % 24);
 
+    //If we skipped all the bytes that we have, exit
     if (payload_offset >= size) {
         return 0;
     }
 
+    //calculate the actual payload size that we are going to use
     size_t payload_size = size - payload_offset;
 
+    //recheking that we do have a payload
     if (payload_size == 0) {
         return 0;
     }
 
+    //our script is slow, so we apply a maximum size for better performance
     if (payload_size > MAX_PAYLOAD_SIZE) {
         payload_size = MAX_PAYLOAD_SIZE;
     }
 
     //Create Audio converter from the random sources to the random destinations
-
+    //It returns 1 if successful, if not -1, not being successful does not mean a crash
+    // but a good guard against illicit behaviour, so we exit normally
     if (SDL_BuildAudioCVT(
             &cvt,
             src_format,
@@ -124,6 +128,7 @@ static int fuzz_one_input(const uint8_t *data, size_t size) {
 
 
     //Prevent excessive allocations, maximum x64
+    // Again, for performance
     if (cvt.len_mult <= 0 || cvt.len_mult > 64) {
         return 0;
     }
