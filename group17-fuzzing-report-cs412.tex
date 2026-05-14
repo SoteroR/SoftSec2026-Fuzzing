@@ -1,0 +1,193 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+
+% to be able to draw some self-contained figs
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\begin{document}
+
+%don't want date printed
+\date{}
+
+% make title bold and 14 pt font (Latex default is non-bold, 16 pt)
+\title{\Large \bf CS-412 Software Security\\
+  Fuzzing lab\\
+  Group 17
+}
+
+%for single author (just remove % characters)
+\author{
+{\rm Arthur Wolf}\\
+\and
+{\rm Sotero Pedro Romero Morón}\\
+\and
+{\rm Mikhaïl Perevoznyk}\\
+\and
+{\rm Eric Dall'Acqua}\\
+%Name
+} % end author
+
+\maketitle
+
+Link to the repository: \\
+\texttt{https://github.com/SoteroR/SoftSec2026-Fuzzing}
+
+\clearpage
+
+\section*{Questions}
+
+\begin{enumerate}
+    \item SDL is a huge library with a lot of very different functions that go from image processing, to game controllers and audio settings. As both other libraries were focused on images, we wanted to focus on something else. We finally decided to fuzz audio related function for various reasons.
+    One important factor to consider, is that we like music, and the topic was not new to us. Also, it aligned well with what we learned in class, as a random stream of bits can be interpreted as a music pattern. 
+
+    We also considered to fuzz the image functions or the video functions. However, these areas feel very similar to what everyone was doing, and it did not totally convince us. 
+
+    Our initial approach was to fuzz the loading function for .wav files. This approach was basic and gave us little coverage, moreover, we were very limited by the wav formatting. Nevertheless we were able to find a seed that crashed during the audio build up. 
+
+    We then evolved and transitioned to a common audio work-path. Load an audio file, change its format, mix it, change it volume and stream it. This approach gave us a higher coverage and gave us more flexibility as we were not using .wav files anymore.
+
+    Detailed harness explanations can be found in the code comments.
+
+    \item During the compilation of the library, these flags were used:
+
+    \texttt{-fsanitize=address / AFL\_USE\_ASAN=1}: This flag enables the address sanitizer instrumentation within the library. This instrumentation is used to detect some bugs as early as possible. Specifically, it focuses on buffer overflows, a little of use-after-free and some spatial and temporary memory safety violations. To achieve this, it delimitates the different memory regions with red zones to which writing is not allowed, depending if it is on globals, heap or stack, these red regions are stored differently. It mainly uses a shadow memory region that maps 8 bytes into 1 byte.
+
+    \texttt{-O1}: This flag refers to the amount of optimization we want to apply to the program, higher optimization will run it faster but will make debugging it more difficult. We decided to stick with "\texttt{-01}" as it is a good balance between speed and debug-ability.
+
+    \texttt{-g}: This flag just adds debugs symbols, which, as the description says, helps us debug.
+
+    
+    \item Our initial seed corpus consists of 10 small binary files designed specifically for our harness. As explained in question 1, the harness does not parse WAV files. Instead, it interprets the input as a structured byte string where the first bytes select audio conversion parameters and the remaining bytes are treated as raw audio payload. Therefore, we use .bin seeds rather than .wav seeds.
+
+    More formally, each input is a byte string and the harness interprets the prefix of each string as a control header:
+    \begin{itemize}
+        \item data[0] \textrightarrow{} source frequency index
+        \item data[1] \textrightarrow{} destination frequency index
+        \item data[2] \textrightarrow{} source audio format index
+        \item data[3] \textrightarrow{} destination audio format index
+        \item data[4] \textrightarrow{} source channel count
+        \item data[5] \textrightarrow{} destination channel count
+        \item data[6] \textrightarrow{} payload offset
+        \item data[7] \textrightarrow{} conversion-shape bit flag
+    \end{itemize}
+
+    The suffix is then used as the audio payload. Our seeds cover the main classes induced by this harness (from 1 to 10 as in the \texttt{/seeds} folder: no-op conversion, format conversion, integer-to-float conversion, endian conversion, channel expansion, channel reduction, frequency upsampling, frequency downsampling, extreme downsampling, combined format/channel/frequency change, and non-default payload offset)
+
+    These seeds deliberately reach different equivalence classes of the SDL audio conversion behavior and are therefore better than random bytes or a specific existing file format.
+
+    Our dictionary \texttt{sdl.dict} provides terminal strings over the alphabet of the input byte strings, which are lexical tokens for the input language accepted by our harness. It contains three main categories:
+    \begin{itemize}
+        \item Control byte tokens (\textbackslash x00, \textbackslash x01, ..., \textbackslash x0d): These are useful because the first bytes of the input are interpreted modulo the number of supported formats, frequencies and channels and they directly select different entries in the harness's format and frequency arrays.
+        \item Conversion-shape flags (\textbackslash x00, \textbackslash x01, \textbackslash x02, \textbackslash x04, \textbackslash x07): These target \texttt{data[7]} which is used as a bitmask in the harness.
+        \item Audio boundary tokens (\textbackslash x00, \textbackslash xff, \textbackslash x80, \textbackslash x7f, 16-bit and 32-bit min/max values, float values): These are useful in the payload part of the input because boundary values are more likely to trigger edge cases in conversions and audio mixing.
+    \end{itemize}
+
+    From the AFL++ status screen (Figure 1), we can quantify the contribution of each mutation strategy to path discovery. Bit-flip mutations contributed 4 new paths in total, arithmetic mutations contributed 2, known integer substitutions contributed 1, and dictionary-based mutations contributed 9 new paths. Dictionary-based mutations also appeared to be as much as 3 times higher in terms of contributed new paths in other runs (for example in the runs for Q8). The largest contribution came from the havoc stage, which discovered 824 new paths. On the other hand, byte-flip mutations and splice mutations did not contribute any new paths during this campaign.
+
+    This suggests that our harness benefits significantly from large random combined mutations (havoc), while the dictionary also proved useful because the input format contains structured control bytes interpreted semantically by the harness.
+    
+    \item The AFL++ status screen (Figure 1) at the end of the run reports a stability of 100.00\%, a corpus count of 958, a map density of 2.66\%, and a total of 10 cycles done. The run lasted 36 min 55 sec, with 3 saved crashes and 36 saved hangs.
+
+    The \texttt{afl-plot} edges graph (Figure 2) shows an exponential discovery curve at the beginning that seems to reach a limit after a few minutes. The curve  rose quickly during the first few minutes, reaching about 880 edges by t = 200s. After that, edge discovery slowed abruptly. Indeed, it only increased with difficulty to 890 at 900s. From this moment on, the edge count stayed flat at this value until the end of the run.
+
+    This suggests the campaign reached coverage saturation for this configuration. The strongest evidence is that no new edges were found for the final 20 min of the run, even though AFL++ completed several more queue cycles, ending at 10 cycles total.
+
+    Yet, the last crash was discovered 8 min after the last edge was found. This gives us the insight that even if coverage is not growing, fuzzing can still find crashes and that finishing a fuzzing campaign earlier just based on coverage is not necessarily a good choice.
+
+    
+    \item We had a total of \texttt{13} crashes with our different campaigns. The one we picked is a heap buffer overflow, and Figure 3 shows the ASan stack trace generated when triggering the bug after minimizing it and reproducing it. The input that causes this crash can be found in \texttt{/minimized\_crash/minimized\_crash.bin}, alongside the inputs that cause the two other crashes we found.
+
+    In order to minimize the crash, we used the following command: "afl-tmin -i crashing\_input -o minimized\_input -- ./target @@". The command used to reproduce it was "./target-afl minimized\_crash/minimized\_crash.bin" (Figure 3)
+
+    The crash occurred while adding data to the stream, likely due to an incorrect length or index calculation within the function itself. Further investigation is required to determine the exact root cause; however, this is outside the scope of the project.
+    
+    \item Two real world applications that use SDL are SameBoy and PPSSPP.
+    
+    SameBoy is a Game Boy / Game Boy Color emulator that is written in C that uses a nativie Cocoa frontend on macOS and and SDL frontend for other platforms. A concrete attack scenario would be an attacker distributing a malicious Game Boy ROM which the user would open in the SDL frontend of SameBoy. The ROM controls the emulated audio hardware behavior and can produce unusual audio patterns, timings, or buffer sizes. If a bug exists in SDL's audio conversion pipeline, for example in \texttt{SDL\_BuildAudioCVT} or \texttt{SDL\_ConvertAudio}, malformed or unexpected conversion parameters could cause memory corruption,  crash, or potentially code execution in the emulator process. This matters because emulators often run untrusted ROMs downloaded from the internet.
+
+    PPSSPP is a PSP emulator available on Windows, Linux, macOS, Android, and iOS. It allows users to run PSP games from \texttt{.ISO} or \texttt{.CSO} files. The SDL frontend is present in the PPSSPP source tree and includes SDL headers and input, audio, and windowing integration.
+    A concrete attack scenario would be for an attacker to publish a malicious crafter ISO or CSO image of a PSP game. When opened in PPSSPP's SDL frontend, the emulator would process attacker-controlled game data. Like for SameBoy, if SDL's audio conversion code mishandles edge cases, the malicious game could trigger a denial of service or memory safety bug through the emulator.
+
+    Our harness mainly targets functions related to initializing and cleaning up SDL resources, as well as handling audio conversion logic, and therefore it doesn't cover how applications like emulators use SDL as a full platform layer. Two code paths that are not exercised by our harness would therefore be video, rendering, window and texture paths on the one hand, and input and event handling on the other hand.
+    Concerning the first gap we identified, this could matter in the context of emulators because video output is one of SDL's main use cases, using functions such as \texttt{SDL\_CreateWindow}, \texttt{SDL\_CreateRenderer}, or \texttt{SDL\_CreateTexture}. A malicious ROM may influence frame dimensions, pixel formats, shader usage, etc through the emulator. Even if the audio conversion code is safe, vulnerabilities could exist in these part of the library, and our harness would not detect them.
+    For the second gap we mentioned, it could matter in this context because emulators rely heavily on SDL for keyboard, gamepad and joystick support regarding controller inputs with functions like \texttt{SDL\_PollEvent}. The attacker could try to use malformed controller mappings or platform-specific input backends to exploit bugs our harness would still not have caught given its focus on audio-related functions.
+    
+    \item The results are different mainly because the two campaigns collect coverage in different ways.
+
+    With compile-time instrumentation, AFL++ inserts coverage-tracking code directly into the program when it is compiled. This is fast, so the fuzzer can execute many more inputs per second. In our results, the instrumented campaign reached 316.01 exec/s, found 892 edges, and produced a corpus of 958 inputs.
+
+    In QEMU mode, the binary is not instrumented. AFL++ runs it through QEMU, which dynamically translates the program while it executes and collects coverage from the translated basic blocks. This adds much more overhead, so the campaign is slower. In our results, QEMU reached only 26.24 exec/s, found 126 edges (Figure 5), and produced a corpus of 15 inputs (Figure 4).
+
+    Because QEMU mode executes fewer test cases in the same wall-clock time, it has fewer chances to discover new paths. This explains why it found fewer edges and added fewer interesting inputs to the corpus. Also, QEMU coverage is recovered dynamically from the binary, so it may not match compile-time edge instrumentation exactly.
+
+    Overall, the instrumented campaign performs better because its coverage collection is faster and more precise, while QEMU mode is slower but useful when the source code or an instrumented binary is not available.
+
+    \item The number of instrumented edges reported by AFL during the target library compilation was of 35779. The number of edges reported by AFL during fuzzing for the harness binary was of 33594. There is a difference of around 2000 edges.
+
+    There are some reasons for this. When the harness is compiled and linked with the binary, unreachable paths are removed. To test this even more, we made a dummy harness that just imported the file. The total edges reported in this case was of 7. Supporting our statement that unreachable edges are removed, and therefore explaining why our harness binary has less edges than the targetted library.
+
+    Regarding map density, we achieved a density of 2.66\% in the same run mentioned above. This represent the percentage of edges we achieved to traverse.
+
+    SDL2 is a very diverse library. As we only focused on a tiny part (the audio-related functions) it is reasonable that our map density is that low. To increase it we would need to fuzz other categories like images or videos.
+
+   Exec speeds measures have been done under three configurations:
+   \begin{itemize}
+       \item No sanitizer + fork mode: 430.57 exec/s
+       \item ASan + fork mode: 316.01 exec/s
+       \item ASan + persistent mode: 817.93 exec/s
+   \end{itemize}
+
+   The basic version is faster than the ASan fork-mode version because it has no sanitizer checks. In the ASan version, AddressSanitizer adds extra runtime checks for memory errors, such as out-of-bounds accesses and use-after-free bugs. These checks are useful for finding bugs, but they add overhead, so the speed drops from 430.57 exec/s to 316.01 exec/s.
+
+    The persistent ASan version is the fastest, even though ASan is enabled. This is because persistent mode avoids restarting the whole target process for every test case. In normal fork mode, AFL++ has to fork a new process for each input, which costs time. In persistent mode, the program stays alive and runs many inputs inside the same process, reducing startup and fork overhead.
+    
+    ASan slows the program down because of extra memory checks, while persistent mode speeds it up because it reuses the same process across many test cases. This is why the persistent + ASan configuration reaches 817.93 exec/s, which is faster than both fork-mode configurations.
+    
+\end{enumerate}
+
+\clearpage
+\appendix
+\section*{Appendix}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=\linewidth]{status_asan_no_persistent.png}
+    \caption{AFL++ status screen for ASan + no persistent mode}
+    \label{fig:status}
+\end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=\linewidth]{edges_asan_no_persistent.png}
+    \caption{Edges graph for ASan + no persistent mode}
+    \label{fig:status}
+\end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=\linewidth]{stacktrace.png}
+    \caption{ASan stack trace for one of the crashes found by the campaign}
+    \label{fig:status}
+\end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=\linewidth]{status-qemu-asan.png}
+    \caption{AFL++ status screen for QEMU + ASan}
+    \label{fig:status}
+\end{figure*}
+
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=\linewidth]{edges_asan_qemu.png}
+    \caption{Edges graph for QEMU + ASan}
+    \label{fig:status}
+\end{figure*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%  LocalWords:  endnotes includegraphics fread ptr nobj noindent
+%%  LocalWords:  pdflatex acks
